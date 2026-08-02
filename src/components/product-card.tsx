@@ -1,0 +1,49 @@
+import Link from "next/link";
+
+import { Price, DiscountBadge } from "@/components/price";
+import { ProductImage } from "@/components/product-image";
+import { QuickAddButton } from "@/components/add-to-cart";
+import type { StorefrontProduct } from "@/lib/api/types";
+
+/**
+ * Vitrin kartı (Server Component) — statik kısmı önbelleklenebilir;
+ * tek etkileşimli parça QuickAddButton'dır (client island).
+ */
+export function ProductCard({ urun }: { urun: StorefrontProduct }) {
+  return (
+    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-surface transition-shadow hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/40">
+      <Link
+        href={`/urun/${urun.uid}`}
+        className="relative block aspect-square overflow-hidden"
+        aria-label={urun.name}
+      >
+        <DiscountBadge price={urun.price} compareAtPrice={urun.compareAtPrice} />
+        {!urun.inStock ? (
+          <span className="absolute right-2 top-2 z-10 rounded-md bg-foreground/70 px-1.5 py-0.5 text-xs font-medium text-background">
+            Tükendi
+          </span>
+        ) : null}
+        <div className="size-full transition-transform duration-300 group-hover:scale-105">
+          <ProductImage
+            src={urun.imageUrl}
+            alt={urun.name}
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          />
+        </div>
+      </Link>
+
+      <div className="flex flex-1 flex-col gap-1 p-3">
+        <Link href={`/urun/${urun.uid}`} className="hover:text-accent">
+          <h3 className="line-clamp-2 text-sm font-medium leading-snug">{urun.name}</h3>
+        </Link>
+        {urun.subtitle ? (
+          <p className="line-clamp-1 text-xs text-soft">{urun.subtitle}</p>
+        ) : null}
+        <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+          <Price price={urun.price} compareAtPrice={urun.compareAtPrice} curCode={urun.curCode} />
+          <QuickAddButton productUid={urun.uid} disabled={!urun.inStock} />
+        </div>
+      </div>
+    </div>
+  );
+}

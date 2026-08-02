@@ -1,0 +1,212 @@
+/**
+ * TicariCore storefront API tipleri.
+ *
+ * Bu tipler backend'in GraphQL şemasıyla BİREBİRDİR (TicariCore/handler/
+ * storefront*.go, odeme.go). Sözleşmenin iki önemli kuralı:
+ *
+ *  - PARASAL ALANLAR STRING taşınır ("1249.90") — kayan nokta yuvarlaması
+ *    vitrin ile sepet arasında kuruş oynatmasın diye. Asla parseFloat ile
+ *    hesap yapmayın; yalnız GÖSTERİM için biçimleyin (lib/format.ts).
+ *  - "Yok" değeri null değil boş string ("") ile bildirilir.
+ */
+
+/** Para birimi kodları (TicariCore constant/cur_code.go). */
+export const CUR = { TRY: 1, USD: 2, EUR: 3 } as const;
+
+// ---------------------------------------------------------------------------
+// Katalog
+// ---------------------------------------------------------------------------
+
+export interface StorefrontProduct {
+  uid: string;
+  code: string;
+  name: string;
+  subtitle: string;
+  description: string;
+  handle: string;
+  imageUrl: string;
+  /** KDV DAHİL vitrin fiyatı (etiket fiyatı bağlayıcıdır). */
+  price: string;
+  /** Üstü çizili fiyat ('' = indirim yok). */
+  compareAtPrice: string;
+  curCode: number;
+  vatRate: string;
+  inStock: boolean;
+  /** Satılabilir miktar (fiziksel − rezerve − ilan tamponu). */
+  available: string;
+  /** İlan satırı yok; kanalın yayın politikasından görünüyor. */
+  virtual: boolean;
+  /** Galeri (ana görsel başta). YALNIZ detay sorgusunda dolu; listede []. */
+  images: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Sepet
+// ---------------------------------------------------------------------------
+
+export interface CartLine {
+  productUid: string;
+  code: string;
+  name: string;
+  quantity: string;
+  /** KDV HARİÇ birim fiyat. */
+  unitPrice: string;
+  vatRate: string;
+  /** KDV DAHİL birim fiyat (etiket fiyatı) — arayüzde bunu gösterin. */
+  grossUnitPrice: string;
+  compareAtPrice: string;
+  /** Sepet indiriminin bu satıra düşen payı. */
+  discountAmount: string;
+  lineSubTotal: string;
+  lineTaxTotal: string;
+  lineTotal: string;
+}
+
+export interface Cart {
+  uid: string;
+  channelUid: string;
+  /** 0 açık · 1 tamamlandı (sipariş doğdu) · 2 terk edildi. */
+  status: number;
+  curCode: number;
+  email: string;
+  customerName: string;
+  phone: string;
+  /** true = bir müşteri hesabına bağlı (misafir uid'iyle erişilemez). */
+  owned: boolean;
+  subTotal: string;
+  discountTotal: string;
+  promotionName: string;
+  couponCode: string;
+  taxTotal: string;
+  shippingFee: string;
+  grandTotal: string;
+  shipName: string;
+  shipAddress: string;
+  shipCity: string;
+  billName: string;
+  billAddress: string;
+  billCity: string;
+  lines: CartLine[];
+}
+
+/** cartSetAddress girdisi — tüm alanlar opsiyonel, boş string = dokunma yok değil, BOŞ yaz. */
+export interface CartAddressInput {
+  shipAddressUid?: string;
+  billAddressUid?: string;
+  email?: string;
+  customerName?: string;
+  phone?: string;
+  shipName?: string;
+  shipAddress?: string;
+  shipDistrict?: string;
+  shipCity?: string;
+  shipCountry?: string;
+  shipPostalCode?: string;
+  billName?: string;
+  billCompName?: string;
+  billTaxNumber?: string;
+  billTaxOffice?: string;
+  billAddress?: string;
+  billDistrict?: string;
+  billCity?: string;
+  billCountry?: string;
+  billPostalCode?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Hesap (storefront müşterisi — back-office kullanıcısı DEĞİL)
+// ---------------------------------------------------------------------------
+
+export interface StorefrontAccount {
+  uid: string;
+  email: string;
+  fullName: string;
+  phone: string;
+  channelUid: string;
+  partnerUid: string;
+  emailVerified: boolean;
+  kvkkAccepted: boolean;
+  marketingConsent: boolean;
+  lastLogin: string;
+  createdAt: string;
+}
+
+export interface StorefrontAuthPayload {
+  /** Storefront JWT — typ:"storefront" damgalı; back-office'te geçmez. */
+  token: string;
+  account: StorefrontAccount;
+}
+
+export interface StorefrontAddress {
+  uid: string;
+  title: string;
+  fullName: string;
+  phone: string;
+  address: string;
+  district: string;
+  city: string;
+  country: string;
+  postalCode: string;
+  compName: string;
+  taxNumber: string;
+  taxOffice: string;
+  isDefaultShip: boolean;
+  isDefaultBill: boolean;
+}
+
+export interface StorefrontOrder {
+  uid: string;
+  docNum: string;
+  /** "YYYY-MM-DD" */
+  issueDate: string;
+  /** KDV dahil genel toplam. */
+  total: string;
+  curCode: number;
+  /** 0 taslak · 1 onaylı · 2 tamamlandı · 3 iptal. */
+  orderState: number;
+  /** 0 bekliyor · 1 kısmi · 2 ödendi · 3 iade. */
+  paymentState: number;
+  /** 0 bekliyor · 1 kısmi · 2 karşılandı. */
+  fulfillmentState: number;
+}
+
+// ---------------------------------------------------------------------------
+// Ödeme
+// ---------------------------------------------------------------------------
+
+export interface PaymentTransaction {
+  uid: string;
+  /** 0 authorize · 1 capture · 2 refund · 3 void. */
+  kind: number;
+  /** 0 bekliyor · 1 başarılı · 2 başarısız. */
+  status: number;
+  amount: string;
+  providerRef: string;
+  errorCode: string;
+  errorMessage: string;
+  createdAt: string;
+}
+
+export interface PaymentSession {
+  uid: string;
+  providerCode: string;
+  channelUid: string;
+  cartUid: string;
+  /** Sipariş uid'i — capture ile dolar (sipariş o anda doğar). */
+  orderUid: string;
+  /** 0 created · 1 pending · 2 authorized · 3 captured · 4 part-refund · 5 refunded · 6 failed · 7 cancelled. */
+  status: number;
+  statusLabel: string;
+  amount: string;
+  capturedAmount: string;
+  refundedAmount: string;
+  curCode: number;
+  /** 3D/hosted ödeme sayfası — YALNIZ start yanıtında dolu gelir. */
+  redirectUrl: string;
+  providerRef: string;
+  paymentUid: string;
+  errorCode: string;
+  errorMessage: string;
+  createdAt: string;
+  transactions: PaymentTransaction[];
+}

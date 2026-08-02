@@ -1,26 +1,65 @@
 @import "tailwindcss";
 
+/*
+ * TurboStoreFront tema değişkenleri.
+ *
+ * Renkler tek yerden yönetilir: aşağıdaki CSS değişkenlerini değiştirerek
+ * markanıza uyarlayın; Tailwind sınıfları (bg-surface, text-soft, border-line,
+ * bg-accent…) @theme bloğu üzerinden bu değişkenlere bağlıdır.
+ * Koyu tema otomatiktir (prefers-color-scheme).
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: #f7f7f8; /* sayfa zemini */
+  --surface: #ffffff; /* kart/panel zemini */
+  --foreground: #18181b; /* ana metin */
+  --soft: #71717a; /* ikincil metin */
+  --line: #e4e4e7; /* çizgi/çerçeve */
+  --accent: #2563eb; /* marka vurgusu (elektrik mavisi) */
+  --accent-hover: #1d4ed8;
+  --accent-foreground: #ffffff;
+  --success: #16a34a;
+  --danger: #dc2626;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #09090b;
+    --surface: #131316;
+    --foreground: #f4f4f5;
+    --soft: #a1a1aa;
+    --line: #27272a;
+    --accent: #3b82f6;
+    --accent-hover: #60a5fa;
+    --accent-foreground: #ffffff;
+    --success: #4ade80;
+    --danger: #f87171;
   }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-soft: var(--soft);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Mobilde alt navigasyon çubuğu içeriğin üstüne binmesin. */
+@media (max-width: 767px) {
+  body {
+    padding-bottom: 4rem;
+  }
 }
