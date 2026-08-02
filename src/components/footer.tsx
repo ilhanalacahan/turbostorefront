@@ -33,7 +33,7 @@ export function Footer() {
             <ul className="space-y-1.5 text-soft">
               <li>
                 <a
-                  href="https://github.com/ticaricore"
+                  href="https://github.com/ilhanalacahan/turbostorefront"
                   target="_blank"
                   rel="noreferrer"
                   className="hover:text-foreground"
