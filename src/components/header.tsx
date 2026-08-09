@@ -37,6 +37,12 @@ export function Header() {
           >
             Tüm Ürünler
           </Link>
+          <Link
+            href="/koleksiyonlar"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-soft transition hover:bg-background hover:text-foreground"
+          >
+            Koleksiyonlar
+          </Link>
         </nav>
 
         <div className="hidden max-w-md flex-1 md:block">

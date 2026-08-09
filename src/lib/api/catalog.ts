@@ -10,8 +10,8 @@ import type { StorefrontProduct } from "./types";
 const URUN_ALANLARI = `uid code name subtitle description handle imageUrl
   price compareAtPrice curCode vatRate inStock available virtual images`;
 
-const LISTE_SORGUSU = `query Urunler($search: String, $categoryUid: String, $limit: Int, $offset: Int) {
-  storefrontProducts(search: $search, categoryUid: $categoryUid, limit: $limit, offset: $offset) { ${URUN_ALANLARI} }
+const LISTE_SORGUSU = `query Urunler($search: String, $categoryUid: String, $collectionUid: String, $limit: Int, $offset: Int) {
+  storefrontProducts(search: $search, categoryUid: $categoryUid, collectionUid: $collectionUid, limit: $limit, offset: $offset) { ${URUN_ALANLARI} }
 }`;
 
 const DETAY_SORGUSU = `query Urun($uid: String!) {
@@ -22,6 +22,8 @@ export interface UrunListeParams {
   search?: string;
   /** Kategori filtresi — storefrontCategories'ten gelen uid. */
   categoryUid?: string;
+  /** Koleksiyon filtresi — doluyken liste koleksiyonun kürasyon sırasıyla döner. */
+  collectionUid?: string;
   /** Backend sayfa başına en fazla 60 verir; fazlası sessizce kırpılır. */
   limit?: number;
   offset?: number;
@@ -34,6 +36,7 @@ export async function urunleriGetir(params: UrunListeParams = {}): Promise<Store
     {
       search: params.search ?? "",
       categoryUid: params.categoryUid ?? "",
+      collectionUid: params.collectionUid ?? "",
       limit: params.limit ?? 24,
       offset: params.offset ?? 0,
     },
@@ -60,6 +63,46 @@ export async function kategorileriGetir(): Promise<StorefrontCategory[]> {
     { revalidate: 300 },
   );
   return d.storefrontCategories;
+}
+
+export interface StorefrontCollection {
+  uid: string;
+  name: string;
+  /** Vitrin URL parçası (/koleksiyon/[handle]). */
+  handle: string;
+  /** '' = yok. */
+  description: string;
+  /** '' = yok. */
+  imageUrl: string;
+  /** Kanal kapsamındaki aktif ürün sayısı (bilgilendirme amaçlı). */
+  productCount: number;
+}
+
+const KOLEKSIYON_ALANLARI = `uid name handle description imageUrl productCount`;
+
+/** Kanalın vitrininde ürünü olan koleksiyonlar (5 dk ISR). */
+export async function koleksiyonlariGetir(): Promise<StorefrontCollection[]> {
+  const d = await gqlServer<{ storefrontCollections: StorefrontCollection[] }>(
+    `query { storefrontCollections { ${KOLEKSIYON_ALANLARI} } }`,
+    undefined,
+    { revalidate: 300 },
+  );
+  return d.storefrontCollections;
+}
+
+/** Handle ile tek koleksiyon (sayfa başlığı) — bulunamazsa null. */
+export async function koleksiyonGetir(handle: string): Promise<StorefrontCollection | null> {
+  try {
+    const d = await gqlServer<{ storefrontCollection: StorefrontCollection | null }>(
+      `query Koleksiyon($handle: String!) { storefrontCollection(handle: $handle) { ${KOLEKSIYON_ALANLARI} } }`,
+      { handle },
+      { revalidate: 300 },
+    );
+    return d.storefrontCollection;
+  } catch {
+    // Backend "koleksiyon bulunamadı"yı hata olarak döner — sayfa 404'e çevirir.
+    return null;
+  }
 }
 
 /** Sunucu tarafı detay — statik iskelet için (canlı fiyat/stok istemciden tazelenir). */
