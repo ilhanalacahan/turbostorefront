@@ -1,4 +1,4 @@
-import { gqlClient } from "./client";
+import { apiIstemci } from "./client";
 import type {
   StorefrontAccount,
   StorefrontAddress,
@@ -10,13 +10,10 @@ import type {
  * Müşteri hesabı — kanal kapsamlıdır: aynı e-posta başka kanalda başka hesaptır.
  * Kayıt için kvkkAccepted=true zorunlu; parola 8-128 karakter.
  * 5 hatalı giriş → 15 dk kilit (backend aynı genel hatayı döndürür).
+ *
+ * Kayıt ve giriş ANONİM uçlardır (yalnız kanal anahtarı); geri kalanı
+ * storefront token'ı ister.
  */
-
-const HESAP_ALANLARI = `uid email fullName phone channelUid partnerUid
-  emailVerified kvkkAccepted marketingConsent lastLogin createdAt`;
-
-const ADRES_ALANLARI = `uid title fullName phone address district city country
-  postalCode compName taxNumber taxOffice isDefaultShip isDefaultBill`;
 
 export async function kayitOl(input: {
   email: string;
@@ -26,52 +23,38 @@ export async function kayitOl(input: {
   kvkkAccepted: boolean;
   marketingConsent?: boolean;
 }): Promise<StorefrontAuthPayload> {
-  const d = await gqlClient<{ storefrontRegister: StorefrontAuthPayload }>(
-    `mutation Kayit($email: String!, $password: String!, $fullName: String, $phone: String,
-                    $kvkk: Boolean!, $marketing: Boolean) {
-      storefrontRegister(email: $email, password: $password, fullName: $fullName,
-        phone: $phone, kvkkAccepted: $kvkk, marketingConsent: $marketing) {
-        token account { ${HESAP_ALANLARI} }
-      }
-    }`,
-    {
+  return apiIstemci<StorefrontAuthPayload>("/account/register", {
+    metot: "POST",
+    govde: {
       email: input.email,
       password: input.password,
       fullName: input.fullName ?? "",
       phone: input.phone ?? "",
-      kvkk: input.kvkkAccepted,
-      marketing: input.marketingConsent ?? false,
+      kvkkAccepted: input.kvkkAccepted,
+      marketingConsent: input.marketingConsent ?? false,
     },
-  );
-  return d.storefrontRegister;
+  });
 }
 
 export async function girisYap(email: string, password: string): Promise<StorefrontAuthPayload> {
-  const d = await gqlClient<{ storefrontLogin: StorefrontAuthPayload }>(
-    `mutation Giris($email: String!, $password: String!) {
-      storefrontLogin(email: $email, password: $password) { token account { ${HESAP_ALANLARI} } }
-    }`,
-    { email, password },
-  );
-  return d.storefrontLogin;
+  return apiIstemci<StorefrontAuthPayload>("/account/login", {
+    metot: "POST",
+    govde: { email, password },
+  });
 }
 
 export async function beniGetir(token: string): Promise<StorefrontAccount | null> {
-  const d = await gqlClient<{ storefrontMe: StorefrontAccount | null }>(
-    `query { storefrontMe { ${HESAP_ALANLARI} } }`,
-    undefined,
-    token,
-  );
-  return d.storefrontMe;
+  try {
+    return await apiIstemci<StorefrontAccount>("/account/me", { token });
+  } catch {
+    // Süresi dolmuş/iptal edilmiş token 401'dir — çağıran oturumu düşürür.
+    return null;
+  }
 }
 
 export async function siparislerim(token: string): Promise<StorefrontOrder[]> {
-  const d = await gqlClient<{ storefrontOrders: StorefrontOrder[] }>(
-    `query { storefrontOrders { uid docNum issueDate total curCode orderState paymentState fulfillmentState } }`,
-    undefined,
-    token,
-  );
-  return d.storefrontOrders;
+  const d = await apiIstemci<{ orders: StorefrontOrder[] }>("/account/orders", { token });
+  return d.orders;
 }
 
 export interface StorefrontOrderLine {
@@ -92,27 +75,26 @@ export interface StorefrontOrderDetail extends StorefrontOrder {
 }
 
 /** Tek siparişin satırlı detayı — yalnız hesabın kendi siparişi. */
-export async function siparisDetay(token: string, uid: string): Promise<StorefrontOrderDetail | null> {
-  const d = await gqlClient<{ storefrontOrder: StorefrontOrderDetail | null }>(
-    `query Siparis($uid: String!) {
-      storefrontOrder(uid: $uid) {
-        uid docNum issueDate total curCode orderState paymentState fulfillmentState
-        lines { productUid name quantity unit unitPrice lineTotal }
-      }
-    }`,
-    { uid },
-    token,
-  );
-  return d.storefrontOrder;
+export async function siparisDetay(
+  token: string,
+  uid: string,
+): Promise<StorefrontOrderDetail | null> {
+  try {
+    return await apiIstemci<StorefrontOrderDetail>(
+      `/account/orders/${encodeURIComponent(uid)}`,
+      { token },
+    );
+  } catch {
+    // Başkasının siparişi de "bulunamadı"dır — varlık sızdırılmaz.
+    return null;
+  }
 }
 
 export async function adreslerim(token: string): Promise<StorefrontAddress[]> {
-  const d = await gqlClient<{ storefrontAddresses: StorefrontAddress[] }>(
-    `query { storefrontAddresses { ${ADRES_ALANLARI} } }`,
-    undefined,
+  const d = await apiIstemci<{ addresses: StorefrontAddress[] }>("/account/addresses", {
     token,
-  );
-  return d.storefrontAddresses;
+  });
+  return d.addresses;
 }
 
 export async function adresKaydet(
@@ -120,37 +102,68 @@ export async function adresKaydet(
   input: Partial<StorefrontAddress> & { address: string },
   uid = "",
 ): Promise<StorefrontAddress> {
-  const d = await gqlClient<{ storefrontAddressSave: StorefrontAddress }>(
-    `mutation AdresKaydet($uid: String, $input: StorefrontAddressInput!) {
-      storefrontAddressSave(uid: $uid, input: $input) { ${ADRES_ALANLARI} }
-    }`,
-    {
-      uid,
-      input: {
-        title: input.title ?? "",
-        fullName: input.fullName ?? "",
-        phone: input.phone ?? "",
-        address: input.address,
-        district: input.district ?? "",
-        city: input.city ?? "",
-        country: input.country ?? "",
-        postalCode: input.postalCode ?? "",
-        compName: input.compName ?? "",
-        taxNumber: input.taxNumber ?? "",
-        taxOffice: input.taxOffice ?? "",
-        isDefaultShip: input.isDefaultShip ?? false,
-        isDefaultBill: input.isDefaultBill ?? false,
-      },
-    },
-    token,
-  );
-  return d.storefrontAddressSave;
+  const govde = {
+    title: input.title ?? "",
+    fullName: input.fullName ?? "",
+    phone: input.phone ?? "",
+    address: input.address,
+    district: input.district ?? "",
+    city: input.city ?? "",
+    country: input.country ?? "",
+    postalCode: input.postalCode ?? "",
+    compName: input.compName ?? "",
+    taxNumber: input.taxNumber ?? "",
+    taxOffice: input.taxOffice ?? "",
+    isDefaultShip: input.isDefaultShip ?? false,
+    isDefaultBill: input.isDefaultBill ?? false,
+  };
+  // Yeni kayıt POST, var olanı değiştirmek PUT: hangisini yaptığımız yoldan
+  // ve metottan okunur (backend ikisini de aynı upsert servisine indirir).
+  return uid
+    ? apiIstemci<StorefrontAddress>(`/account/addresses/${encodeURIComponent(uid)}`, {
+        metot: "PUT",
+        govde,
+        token,
+      })
+    : apiIstemci<StorefrontAddress>("/account/addresses", {
+        metot: "POST",
+        govde,
+        token,
+      });
 }
 
 export async function adresSil(token: string, uid: string): Promise<void> {
-  await gqlClient(
-    `mutation AdresSil($uid: String!) { storefrontAddressDelete(uid: $uid) }`,
-    { uid },
+  await apiIstemci(`/account/addresses/${encodeURIComponent(uid)}`, {
+    metot: "DELETE",
     token,
-  );
+  });
+}
+
+/** Profil bilgisi güncelleme (ad/telefon/pazarlama izni). */
+export async function profilGuncelle(
+  token: string,
+  input: { fullName?: string; phone?: string; marketingConsent?: boolean },
+): Promise<StorefrontAccount> {
+  return apiIstemci<StorefrontAccount>("/account/me", {
+    metot: "PUT",
+    govde: {
+      fullName: input.fullName ?? "",
+      phone: input.phone ?? "",
+      marketingConsent: input.marketingConsent ?? false,
+    },
+    token,
+  });
+}
+
+/** Şifre değiştirme — eski şifre doğrulanır. */
+export async function sifreDegistir(
+  token: string,
+  oldPassword: string,
+  newPassword: string,
+): Promise<void> {
+  await apiIstemci("/account/password", {
+    metot: "PUT",
+    govde: { oldPassword, newPassword },
+    token,
+  });
 }

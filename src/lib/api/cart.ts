@@ -1,4 +1,4 @@
-import { gqlClient } from "./client";
+import { apiIstemci } from "./client";
 import type { Cart, CartAddressInput } from "./types";
 
 /**
@@ -6,36 +6,31 @@ import type { Cart, CartAddressInput } from "./types";
  *
  * SEPET KİMLİĞİ: backend'de ayrı bir "cart token" yoktur; sepetin uid'i
  * yetki anahtarıdır (bilen okur/yazar). Misafir sepetinin uid'i tarayıcıda
- * saklanır (store/cart-store.ts) ve her çağrıya ARGÜMAN olarak gider.
- * Müşteri giriş yapınca cartMerge misafir sepetini hesaba taşır.
+ * saklanır (store/cart-store.ts) ve YOLA girer. Müşteri giriş yapınca
+ * sepetBirlestir misafir sepetini hesaba taşır.
  *
- * SEPET DONMASI: ödeme başlatıldıysa (paymentSessionStart) sepet mutasyonları
- * backend'ce reddedilir; önce ödemeyi iptal etmek (paymentSessionVoid) gerekir.
+ * SEPET DONMASI: ödeme başlatıldıysa (odemeBaslat) sepet mutasyonları
+ * backend'ce reddedilir; önce ödemeyi iptal etmek (odemeIptal) gerekir.
+ *
+ * Metot seçimi anlamlıdır: satır EKLEME toplar (POST), satır YAZMA mutlaktır
+ * (PUT), kupon kaldırma silmedir (DELETE).
  */
 
-const SEPET_ALANLARI = `uid channelUid status curCode email customerName phone owned
-  subTotal discountTotal promotionName couponCode taxTotal shippingFee grandTotal
-  shipName shipAddress shipCity billName billAddress billCity
-  lines { productUid code name quantity unitPrice vatRate grossUnitPrice
-    compareAtPrice discountAmount lineSubTotal lineTaxTotal lineTotal }`;
+const yol = (uid: string, ek = "") => `/carts/${encodeURIComponent(uid)}${ek}`;
 
 export async function sepetGetir(uid: string, token?: string | null): Promise<Cart | null> {
-  const d = await gqlClient<{ cart: Cart | null }>(
-    `query Sepet($uid: String!) { cart(uid: $uid) { ${SEPET_ALANLARI} } }`,
-    { uid },
-    token,
-  );
-  return d.cart;
+  try {
+    return await apiIstemci<Cart>(yol(uid), { token });
+  } catch {
+    // Silinmiş/tamamlanmış sepet 404'tür; vitrin bunu "sepet yok"a çevirir.
+    return null;
+  }
 }
 
 /** Giriş yapmış müşterinin açık sepeti (yoksa null) — sekmeler arası devir için. */
 export async function mevcutSepet(token: string): Promise<Cart | null> {
-  const d = await gqlClient<{ cartCurrent: Cart | null }>(
-    `query { cartCurrent { ${SEPET_ALANLARI} } }`,
-    undefined,
-    token,
-  );
-  return d.cartCurrent;
+  const d = await apiIstemci<Cart | { cart: null }>("/carts/current", { token });
+  return "uid" in d ? d : null;
 }
 
 /** Satır ekler; cartUid '' ise YENİ sepet açar (dönen sepetin uid'ini saklayın). */
@@ -45,14 +40,11 @@ export async function sepeteEkle(
   quantity: string,
   token?: string | null,
 ): Promise<Cart> {
-  const d = await gqlClient<{ cartLineAdd: Cart }>(
-    `mutation Ekle($cartUid: String, $productUid: String!, $quantity: String) {
-      cartLineAdd(cartUid: $cartUid, productUid: $productUid, quantity: $quantity) { ${SEPET_ALANLARI} }
-    }`,
-    { cartUid, productUid, quantity },
+  return apiIstemci<Cart>("/carts/lines", {
+    metot: "POST",
+    govde: { cartUid, productUid, quantity },
     token,
-  );
-  return d.cartLineAdd;
+  });
 }
 
 /** Satır miktarını MUTLAK değere çeker; "0" satırı siler. */
@@ -62,14 +54,11 @@ export async function satirAyarla(
   quantity: string,
   token?: string | null,
 ): Promise<Cart> {
-  const d = await gqlClient<{ cartLineSet: Cart }>(
-    `mutation Ayarla($cartUid: String!, $productUid: String!, $quantity: String!) {
-      cartLineSet(cartUid: $cartUid, productUid: $productUid, quantity: $quantity) { ${SEPET_ALANLARI} }
-    }`,
-    { cartUid, productUid, quantity },
+  return apiIstemci<Cart>(yol(cartUid, "/lines"), {
+    metot: "PUT",
+    govde: { productUid, quantity },
     token,
-  );
-  return d.cartLineSet;
+  });
 }
 
 export async function adresYaz(
@@ -77,34 +66,27 @@ export async function adresYaz(
   input: CartAddressInput,
   token?: string | null,
 ): Promise<Cart> {
-  const d = await gqlClient<{ cartSetAddress: Cart }>(
-    `mutation Adres($cartUid: String!, $input: CartAddressInput!) {
-      cartSetAddress(cartUid: $cartUid, input: $input) { ${SEPET_ALANLARI} }
-    }`,
-    { cartUid, input },
+  return apiIstemci<Cart>(yol(cartUid, "/address"), {
+    metot: "PUT",
+    govde: input,
     token,
-  );
-  return d.cartSetAddress;
+  });
 }
 
-export async function kuponUygula(cartUid: string, code: string, token?: string | null): Promise<Cart> {
-  const d = await gqlClient<{ cartApplyCoupon: Cart }>(
-    `mutation Kupon($cartUid: String!, $code: String!) {
-      cartApplyCoupon(cartUid: $cartUid, code: $code) { ${SEPET_ALANLARI} }
-    }`,
-    { cartUid, code },
+export async function kuponUygula(
+  cartUid: string,
+  code: string,
+  token?: string | null,
+): Promise<Cart> {
+  return apiIstemci<Cart>(yol(cartUid, "/coupon"), {
+    metot: "POST",
+    govde: { code },
     token,
-  );
-  return d.cartApplyCoupon;
+  });
 }
 
 export async function kuponKaldir(cartUid: string, token?: string | null): Promise<Cart> {
-  const d = await gqlClient<{ cartRemoveCoupon: Cart }>(
-    `mutation KuponSil($cartUid: String!) { cartRemoveCoupon(cartUid: $cartUid) { ${SEPET_ALANLARI} } }`,
-    { cartUid },
-    token,
-  );
-  return d.cartRemoveCoupon;
+  return apiIstemci<Cart>(yol(cartUid, "/coupon"), { metot: "DELETE", token });
 }
 
 /**
@@ -114,10 +96,9 @@ export async function kuponKaldir(cartUid: string, token?: string | null): Promi
  * uid'i saklanmalıdır — birleşmede uid DEĞİŞEBİLİR.
  */
 export async function sepetBirlestir(guestCartUid: string, token: string): Promise<Cart> {
-  const d = await gqlClient<{ cartMerge: Cart }>(
-    `mutation Birlestir($uid: String!) { cartMerge(guestCartUid: $uid) { ${SEPET_ALANLARI} } }`,
-    { uid: guestCartUid },
+  return apiIstemci<Cart>("/carts/merge", {
+    metot: "POST",
+    govde: { guestCartUid },
     token,
-  );
-  return d.cartMerge;
+  });
 }
