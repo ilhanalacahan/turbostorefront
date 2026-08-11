@@ -1,1 +1,3 @@
 @AGENTS.md
+@ANAYASA.md
+@../ANAYASA.md

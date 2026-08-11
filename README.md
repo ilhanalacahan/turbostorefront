@@ -91,24 +91,15 @@ src/
   store/                   # Zustand: cartUid + oturum (localStorage persist)
 ```
 
-## API sözleşmesinin altın kuralları
+## API sözleşmesinin kuralları
 
-Bu vitrin TicariCore'un storefront yüzeyini kullanır. Kod yazarken bilinmesi
-gerekenler (ayrıntılar `src/lib/api/*.ts` yorumlarında):
+Bu vitrin TicariCore'un storefront yüzeyini kullanır. Bağlayıcı kurallar
+[`ANAYASA.md`](ANAYASA.md)'dedir (V1–V8) — parasal alanların string oluşu, KDV
+dahil etiket, sepet kimliği, `checkout` mutation'ının neden olmadığı, donmuş
+sepet, kanal kapsamlı hesaplar ve liste kırpması orada tek tek gerekçesiyle
+yazılıdır. Uygulama ayrıntıları `src/lib/api/*.ts` yorumlarındadır.
 
-1. **Parasal alanlar string'dir** (`"1249.90"`). İstemcide asla hesap yapmayın —
-   tüm toplamlar sunucudan gelir, yalnız biçimlenir.
-2. **Fiyatlar KDV dahildir** (etiket fiyatı bağlayıcıdır).
-3. **Sepet kimliği = `cart.uid`**. Ayrı token yok; uid'i bilen sepeti yönetir.
-   Girişten sonra `cartMerge` — dönen uid saklanır (değişebilir).
-4. **`checkout` mutation'ı yoktur.** Sipariş, ödemenin tahsilatı anında doğar:
-   `cartSetAddress → paymentSessionStart → paymentSessionAuthorize`.
-   Tüm ön koşullar (canlı stok, kur, kampanya tazeleme) `paymentSessionStart`'ta
-   doğrulanır. `clientUid` idempotency anahtarıdır.
-5. **Ödeme başlayınca sepet donar** — değiştirmek için önce `paymentSessionVoid`.
-6. **Hesaplar kanal kapsamlıdır**: aynı e-posta başka kanalda başka hesaptır.
-7. Liste sorgusu sayfa başına en çok **60** kayıt döndürür (sunucu kırpar);
-   `images` alanı yalnız **detay** sorgusunda doludur (listede `[]`).
+Kod yazmadan önce o belgeyi okuyun; burada tekrarlanmaz.
 
 ## Test ödemesi
 
