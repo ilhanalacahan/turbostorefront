@@ -12,8 +12,9 @@ kimlik damgası G12.
 
 ### V1 — Tarayıcı backend'e doğrudan gitmez
 
-Her istemci isteği `/api/graphql` proxy'sinden geçer; publishable key orada
-eklenir. Sunucu bileşenleri ISR için `gqlServer` ile doğrudan gider.
+Her istemci isteği kendi `/api/store` proxy'mizden geçer (`apiIstemci`);
+publishable key orada eklenir. Sunucu bileşenleri ISR için `apiSunucu` ile
+TicariCore'un `/store/v1` REST yüzeyine doğrudan gider.
 
 *Neden:* publishable key tarayıcıya sızmaz ve tenant çözümü tek yerde kalır.
 
@@ -36,14 +37,11 @@ Değişiklik için önce `paymentSessionVoid` çağrılır.
 *Neden:* para peşin çekilir (G18); donmamış sepet, tahsil edilen tutarla
 gönderilen mal arasında sessiz fark üretir.
 
-### V5 — Alan listeleri tek yerde tutulur
-
-`src/lib/api/{catalog,cart,account,payment}.ts` içindeki GraphQL
-operasyonlarında alan listeleri (`SEPET_ALANLARI` vb.) tek yerde tanımlanır;
-yeni uç eklerken bu kalıp korunur.
+### V5 — Sepetin tek doğruluk kaynağı use-cart'tır
 
 `src/hooks/use-cart.ts` sepetin tek doğruluk kaynağıdır; mutasyonlar dönen
-sepeti **cache'e yazar** — invalidation ile yeniden çekmez.
+sepeti **cache'e yazar** — invalidation ile yeniden çekmez. REST uçları sabit
+şekiller döndürdüğü için (G31) istemcide senkron tutulacak alan listesi yoktur.
 
 ### V6 — Hesaplar kanal kapsamlıdır
 
