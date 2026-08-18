@@ -31,6 +31,13 @@ export interface StorefrontProduct {
   compareAtPrice: string;
   curCode: number;
   vatRate: string;
+  /** Kimlik/özellik alanları — ilan ezmesi > ana kart ('' = yok). */
+  brandName: string;
+  modelName: string;
+  unit: string;
+  subCode: string;
+  mfrCode: string;
+  barcode: string;
   inStock: boolean;
   /** Satılabilir miktar (fiziksel − rezerve − ilan tamponu). */
   available: string;

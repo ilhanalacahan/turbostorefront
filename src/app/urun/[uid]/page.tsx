@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { StorefrontProduct } from "@/lib/api/types";
 import { notFound } from "next/navigation";
 
 import { urunGetir } from "@/lib/api/catalog";
@@ -61,6 +62,34 @@ export default async function UrunDetay({ params }: Props) {
           </p>
         </section>
       ) : null}
+
+      <UrunBilgileri urun={urun} />
     </div>
+  );
+}
+
+/** Kimlik/özellik satırları — yalnız dolu alanlar listelenir; hepsi boşsa bölüm hiç çıkmaz. */
+function UrunBilgileri({ urun }: { urun: StorefrontProduct }) {
+  const satirlar: [string, string][] = [
+    ["Marka", urun.brandName],
+    ["Model", urun.modelName],
+    ["Ürün Kodu", urun.code],
+    ["Üretici Kodu", urun.mfrCode],
+    ["Barkod", urun.barcode],
+    ["Birim", urun.unit],
+  ].filter((s): s is [string, string] => Boolean(s[1]));
+  if (!satirlar.length) return null;
+  return (
+    <section className="mt-12 max-w-3xl space-y-3">
+      <h2 className="text-lg font-bold">Ürün Bilgileri</h2>
+      <dl className="divide-y divide-line rounded-xl border border-line text-sm">
+        {satirlar.map(([etiket, deger]) => (
+          <div key={etiket} className="flex items-center justify-between px-4 py-2.5">
+            <dt className="text-soft">{etiket}</dt>
+            <dd className="font-medium">{deger}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
