@@ -41,6 +41,10 @@ export interface StorefrontProduct {
   inStock: boolean;
   /** Satılabilir miktar (fiziksel − rezerve − ilan tamponu). */
   available: string;
+  /** Siparişe göre üretim (G49): stok sınırına takılmaz, termin gösterilir. */
+  madeToOrder: boolean;
+  /** Üretim termini (gün) — "X günde hazırlanır". */
+  leadDays: number;
   /** İlan satırı yok; kanalın yayın politikasından görünüyor. */
   virtual: boolean;
   /** Galeri (ana görsel başta). YALNIZ detay sorgusunda dolu; listede []. */

@@ -18,7 +18,11 @@ export function ProductCard({ urun }: { urun: StorefrontProduct }) {
         aria-label={urun.name}
       >
         <DiscountBadge price={urun.price} compareAtPrice={urun.compareAtPrice} />
-        {!urun.inStock ? (
+        {urun.madeToOrder ? (
+          <span className="absolute right-2 top-2 z-10 rounded-md bg-foreground/70 px-1.5 py-0.5 text-xs font-medium text-background">
+            {urun.leadDays > 0 ? `${urun.leadDays} günde hazırlanır` : "Siparişe özel"}
+          </span>
+        ) : !urun.inStock ? (
           <span className="absolute right-2 top-2 z-10 rounded-md bg-foreground/70 px-1.5 py-0.5 text-xs font-medium text-background">
             Tükendi
           </span>

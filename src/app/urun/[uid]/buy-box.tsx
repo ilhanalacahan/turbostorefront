@@ -48,7 +48,14 @@ export function BuyBox({ baslangic }: { baslangic: StorefrontProduct }) {
         <p className="text-xs text-soft">KDV (%{Number(urun.vatRate)}) dahildir</p>
       </div>
 
-      {urun.inStock ? (
+      {urun.madeToOrder ? (
+        // Siparişe göre üretim (G49): stok kapısı yok — termin gösterilir.
+        <p className="flex items-center gap-1.5 text-sm font-medium text-success">
+          <CheckCircle2 className="size-4" />
+          Siparişe özel hazırlanır
+          {urun.leadDays > 0 ? ` — ${urun.leadDays} günde hazır` : ""}
+        </p>
+      ) : urun.inStock ? (
         <p className="flex items-center gap-1.5 text-sm font-medium text-success">
           <CheckCircle2 className="size-4" />
           Stokta{stok > 0 && stok <= 10 ? ` — son ${miktar(urun.available)} adet` : ""}
